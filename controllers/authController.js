@@ -21,12 +21,10 @@ exports.register = async (req, res) => {
                 email: email
             }
         })
-        console.log(user);
+        // console.log(user);
 
         if (user) {
-          return res
-            .status(422)
-            .json(validation({ msg: 'Email already registered' }));
+          return res.status(422).json(validation({ msg: 'Email already registered' }));
         }
 
         Role.findOne({
@@ -86,17 +84,17 @@ exports.login = async (req, res) => {
                     { expiresIn: "30d" }
                 );
 
-                jwt.verify(accessToken, process.env.ACCESS_TOKEN_PRIVATE_KEY, function (err, data) {
-                    console.log(err, data);
-                })
-                jwt.verify(refreshToken, process.env.REFRESH_TOKEN_PRIVATE_KEY, function (err, data) {
-                    console.log(err, data);
-                })
+                // jwt.verify(accessToken, process.env.ACCESS_TOKEN_PRIVATE_KEY, function (err, data) {
+                //     console.log(err, data);
+                // })
+                // jwt.verify(refreshToken, process.env.REFRESH_TOKEN_PRIVATE_KEY, function (err, data) {
+                //     console.log(err, data);
+                // })
                 res.json({
                     success: true,
                     data: payload,
-                    token: 'Bearer ' + accessToken,
-                    refreshToken: 'Bearer ' + refreshToken
+                    access_token: 'Bearer ' + accessToken,
+                    refresh_token: 'Bearer ' + refreshToken
                 });
             } else {
                 res.status(401).json(error('Authentication failed. Wrong password.', res.statusCode));
@@ -108,3 +106,27 @@ exports.login = async (req, res) => {
         res.status(500).json(error('Server error', res.statusCode));
     });
 }
+
+exports.getAuthenticatedUser = async (req, res) => {
+    const { email } = req.body;
+    try {
+        const user = await User.findOne({
+            where: {
+                email: email
+            }
+        })
+        // console.log(user);
+
+        if (!user) {
+          return res.status(422).json(validation({ msg: 'User not found!' }));
+        }
+  
+      // Send the response
+      res.status(200).json(success(`Hello ${user.fullname}`, { data: [user] }, res.statusCode));
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).json(error('Server error', res.statusCode));
+    }
+  
+    return false;
+  };

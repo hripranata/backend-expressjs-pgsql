@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { validationResult } = require('express-validator');
 const { success, error, validation } = require('../helpers/responseApi');
 const User = require('../database/models').User;
@@ -63,33 +64,47 @@ exports.login = async (req, res) => {
     const { email, password } = req.body;
 
     User.findOne({
-            where: {
-                email: email
+        where: {
+            email: email
+        }
+    })
+    .then((user) => {
+        if (!user) {
+            return res.status(401).json(error('Authentication failed. User not found.', res.statusCode));
+        }
+        user.comparePassword(password, (err, isMatch) => {
+            const payload = { email: user.email, role_id: user.role_id}
+            if (isMatch && !err) {
+                const accessToken = jwt.sign(
+                    payload, 
+                    process.env.ACCESS_TOKEN_PRIVATE_KEY, 
+                    { expiresIn: "15m" }
+                );
+                const refreshToken = jwt.sign(
+                    payload, 
+                    process.env.REFRESH_TOKEN_PRIVATE_KEY, 
+                    { expiresIn: "30d" }
+                );
+
+                jwt.verify(accessToken, process.env.ACCESS_TOKEN_PRIVATE_KEY, function (err, data) {
+                    console.log(err, data);
+                })
+                jwt.verify(refreshToken, process.env.REFRESH_TOKEN_PRIVATE_KEY, function (err, data) {
+                    console.log(err, data);
+                })
+                res.json({
+                    success: true,
+                    data: payload,
+                    token: 'Bearer ' + accessToken,
+                    refreshToken: 'Bearer ' + refreshToken
+                });
+            } else {
+                res.status(401).json(error('Authentication failed. Wrong password.', res.statusCode));
             }
         })
-        .then((user) => {
-            if (!user) {
-                return res.status(401).json(error('Authentication failed. User not found.', res.statusCode));
-            }
-            user.comparePassword(password, (err, isMatch) => {
-                if (isMatch && !err) {
-                    let token = jwt.sign(JSON.parse(JSON.stringify(user)), 'nodeauthsecret', {
-                        expiresIn: 86400 * 30
-                    });
-                    jwt.verify(token, 'nodeauthsecret', function (err, data) {
-                        console.log(err, data);
-                    })
-                    res.json({
-                        success: true,
-                        token: 'Bearer ' + token
-                    });
-                } else {
-                    res.status(401).json(error('Authentication failed. Wrong password.', res.statusCode));
-                }
-            })
-        })
-        .catch((error) => {
-            console.error(err.message);
-            res.status(500).json(error('Server error', res.statusCode));
-        });
+    })
+    .catch((err) => {
+        console.error(err.message);
+        res.status(500).json(error('Server error', res.statusCode));
+    });
 }

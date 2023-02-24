@@ -3,6 +3,7 @@ const {
   Model
 } = require('sequelize');
 const bcrypt = require('bcryptjs');
+require('dotenv').config();
 module.exports = (sequelize, DataTypes) => {
   class User extends Model {
     /**
@@ -42,7 +43,7 @@ module.exports = (sequelize, DataTypes) => {
   });
   User.beforeSave(async (user, options) => {
     if (user.password) {
-      user.password = bcrypt.hashSync(user.password, bcrypt.genSaltSync(10), null);
+      user.password = bcrypt.hashSync(user.password, bcrypt.genSaltSync(process.env.SALT), null);
     }
   });
   User.prototype.comparePassword = function (passw, cb) {

@@ -19,7 +19,7 @@ router.post('/auth/login', loginValidation, login);
 // router.post('/auth/verify/resend', resendVerification);
 // router.post('/auth/forgot', forgot);
 // router.post('/auth/reset/:token', reset);
-router.post('/user', verifyJwt, rolePerm("SHOW_PRODUCT"), getAuthenticatedUser);
+router.post('/user', verifyJwt, rolePerm("DELETE_PRODUCT"), getAuthenticatedUser);
 // router.get('/all', allAccess);
 // router.get('/admin', auth, isAdmin, getAuthenticatedAdmin);
 

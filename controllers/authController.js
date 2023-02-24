@@ -10,6 +10,7 @@ exports.register = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) { return res.status(422).json(validation(errors.array())); }
     const { email, password, fullname, phone } = req.body;
+    console.log(req);
     try {
         // const user = await db.sequelize.query('SELECT * FROM "public"."Users" WHERE email = :email', {
         //     replacements: {email: email},
@@ -32,7 +33,7 @@ exports.register = async (req, res) => {
                 role_name: 'Admin'
             }
         }).then((role) => {
-            console.log(role.id);
+            // console.log(role.id);
             User.create({
                 email: email,
                 password: password,

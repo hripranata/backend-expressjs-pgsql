@@ -72,12 +72,12 @@ exports.login = async (req, res) => {
             return res.status(401).json(error('Authentication failed. User not found.', res.statusCode));
         }
         user.comparePassword(password, (err, isMatch) => {
-            const payload = { email: user.email, role_id: user.role_id}
+            const payload = { email: user.email, role_id: user.role_id};
             if (isMatch && !err) {
                 const accessToken = jwt.sign(
                     payload, 
                     process.env.ACCESS_TOKEN_PRIVATE_KEY, 
-                    { expiresIn: "15m" }
+                    { expiresIn: "30m" }
                 );
                 const refreshToken = jwt.sign(
                     payload, 
@@ -85,12 +85,6 @@ exports.login = async (req, res) => {
                     { expiresIn: "30d" }
                 );
 
-                // jwt.verify(accessToken, process.env.ACCESS_TOKEN_PRIVATE_KEY, function (err, data) {
-                //     console.log(err, data);
-                // })
-                // jwt.verify(refreshToken, process.env.REFRESH_TOKEN_PRIVATE_KEY, function (err, data) {
-                //     console.log(err, data);
-                // })
                 res.json({
                     success: true,
                     data: payload,
@@ -130,4 +124,44 @@ exports.getAuthenticatedUser = async (req, res) => {
     }
   
     return false;
-  };
+};
+
+exports.refreshToken = async (req, res) => {
+    const { refresh_token } = req.body;
+
+    const splitRefreshToken = refresh_token.split(' ');
+    const bearer = splitRefreshToken[0];
+    const token = splitRefreshToken[1];
+  
+    if (bearer !== 'Bearer') {
+      return res.status(400).json(error('The type is must be a Bearer', res.statusCode));
+    }
+  
+    if (!token) return res.status(404).json(error('No token found'));
+
+    const jwtData = await jwt.verify(token, process.env.REFRESH_TOKEN_PRIVATE_KEY);
+
+    if (!jwtData) { return res.status(401).json(error('Unauthorized', res.statusCode)); }
+
+    const payload = { email: jwtData.email, role_id: jwtData.role_id}
+
+    try {
+        const accessToken = jwt.sign(
+            payload, 
+            process.env.ACCESS_TOKEN_PRIVATE_KEY, 
+            { expiresIn: "30m" }
+        );
+    
+        res.json({
+            success: true,
+            data: payload,
+            access_token: 'Bearer ' + accessToken,
+            refresh_token: 'Bearer ' + refresh_token
+        });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json(error('Server error', res.statusCode));
+    }
+
+    return false;
+}

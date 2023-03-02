@@ -1,10 +1,13 @@
 require('dotenv').config();
 const { validationResult } = require('express-validator');
 const { success, error, validation } = require('../helpers/responseApi');
+const { randomString } = require('../helpers/common');
 const User = require('../database/models').User;
 const Role = require('../database/models').Role;
+const Verification = require('../database/models').Verification;
 // const db = require('../database/models/');
 const jwt = require('jsonwebtoken');
+const mail = require('../config/mail');
 
 exports.register = async (req, res) => {
     const errors = validationResult(req);
@@ -28,28 +31,69 @@ exports.register = async (req, res) => {
           return res.status(422).json(validation({ msg: 'Email already registered' }));
         }
 
-        Role.findOne({
+        // Role.findOne({
+        //     where: {
+        //         role_name: 'Admin'
+        //     }
+        // }).then((role) => {
+        //     // console.log(role.id);
+        //     User.create({
+        //         email: email,
+        //         password: password,
+        //         fullname: fullname,
+        //         phone: phone,
+        //         role_id: role.id
+        //     })
+        //     .then((user) => {
+        //         res.status(200).json(success('Register success, please activate your account.', user, res.statusCode))
+        //     })
+        //     .catch((err) => {
+        //         console.error(err.message);
+        //         res.status(500).json(error('Server error', res.statusCode));
+        //     });
+        // }).catch((err) => {
+        //     console.error(err.message);
+        //     res.status(500).json(error('Server error', res.statusCode));
+        // });
+
+        const role = await Role.findOne({
             where: {
                 role_name: 'Admin'
             }
-        }).then((role) => {
-            // console.log(role.id);
-            User.create({
-                email: email,
-                password: password,
-                fullname: fullname,
-                phone: phone,
-                role_id: role.id
-            })
-            .then((user) => res.status(200).json(success('Register success, please activate your account.', user, res.statusCode)))
-            .catch((err) => {
-                console.error(err.message);
-                res.status(500).json(error('Server error', res.statusCode));
-            });
-        }).catch((err) => {
-            console.error(err.message);
+        })
+        if (!role) {
+            console.log("Find role : " + role);
             res.status(500).json(error('Server error', res.statusCode));
+        }
+        const newUser = await User.create({
+            email: email,
+            password: password,
+            fullname: fullname,
+            phone: phone,
+            role_id: role.id
+        })
+        if (!newUser) {
+            console.log("New User : " + newUser);
+            res.status(500).json(error('Server error', res.statusCode));
+        }
+        const token = randomString(50);
+        const verification = await Verification.create({
+            user_id: newUser.id,
+            token: token,
+            token_type: 'Register New Account',
         });
+        if (!verification) {
+            console.log("Verification : " + verification);
+            res.status(500).json(error('Server error', res.statusCode));
+        }
+
+        await mail.sendConfirmationEmail(
+            fullname,
+            email,
+            token,
+        );
+
+        res.status(200).json(success('Register success, please activate your account.', newUser, res.statusCode))
 
     } catch (err) {
         console.error(err.message);

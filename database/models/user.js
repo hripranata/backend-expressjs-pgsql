@@ -16,6 +16,10 @@ module.exports = (sequelize, DataTypes) => {
       User.belongsTo(models.Role, {
         foreignKey: 'role_id',
       })
+      User.hasMany(models.Verification, {
+        as: 'tokens',
+        foreignKey: 'user_id'
+      })
     }
   }
   User.init({

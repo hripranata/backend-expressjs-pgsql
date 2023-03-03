@@ -5,7 +5,6 @@ const { randomString, expiredDateByAddHour } = require('../helpers/common');
 const User = require('../database/models').User;
 const Role = require('../database/models').Role;
 const Verification = require('../database/models').Verification;
-// const db = require('../database/models/');
 const jwt = require('jsonwebtoken');
 const mail = require('../config/mail');
 
@@ -15,17 +14,11 @@ exports.register = async (req, res) => {
     const { email, password, fullname, phone } = req.body;
     console.log(req);
     try {
-        // const user = await db.sequelize.query('SELECT * FROM "public"."Users" WHERE email = :email', {
-        //     replacements: {email: email},
-        //     type: db.sequelize.QueryTypes.SELECT
-        // });
-
         const user = await User.findOne({
             where: {
                 email: email
             }
         })
-        // console.log(user);
 
         if (user) {
           return res.status(422).json(validation({ msg: 'Email already registered' }));
@@ -72,21 +65,14 @@ exports.register = async (req, res) => {
             phone: phone,
             role_id: role.id
         })
-        if (!newUser) {
-            console.log("New User : " + newUser);
-            res.status(500).json(error('Server error', res.statusCode));
-        }
+
         const token = randomString(50);
-        const verification = await Verification.create({
+        await Verification.create({
             user_id: newUser.id,
             token: token,
-            token_type: 'Register New Account',
+            token_type: 'REGISTER_ACCOUNT',
             expiredAt: expiredDateByAddHour(1)
         });
-        if (!verification) {
-            console.log("Verification : " + verification);
-            res.status(500).json(error('Server error', res.statusCode));
-        }
 
         await mail.sendConfirmationEmail(
             fullname,
@@ -107,15 +93,16 @@ exports.login = async (req, res) => {
     if (!errors.isEmpty()) { return res.status(422).json(validation(errors.array())); }
     const { email, password } = req.body;
 
-    User.findOne({
-        where: {
-            email: email
-        }
-    })
-    .then((user) => {
-        if (!user) {
-            return res.status(401).json(error('Authentication failed. User not found.', res.statusCode));
-        }
+    try {
+        const user = await User.findOne({
+            where: {
+                email: email
+            }
+        });
+        if (!user) return res.status(401).json(error('Authentication failed. User not found.', res.statusCode));
+
+        if (user.verified === false) return res.status(401).json(error('Authentication failed. User not verified.', res.statusCode));
+
         user.comparePassword(password, (err, isMatch) => {
             const payload = { email: user.email, role_id: user.role_id};
             if (isMatch && !err) {
@@ -129,7 +116,7 @@ exports.login = async (req, res) => {
                     process.env.REFRESH_TOKEN_PRIVATE_KEY, 
                     { expiresIn: "30d" }
                 );
-
+    
                 res.json({
                     success: true,
                     data: payload,
@@ -140,11 +127,10 @@ exports.login = async (req, res) => {
                 res.status(401).json(error('Authentication failed. Wrong password.', res.statusCode));
             }
         })
-    })
-    .catch((err) => {
+    } catch(err) {
         console.error(err.message);
         res.status(500).json(error('Server error', res.statusCode));
-    });
+    }
 }
 
 exports.getAuthenticatedUser = async (req, res) => {
@@ -155,13 +141,11 @@ exports.getAuthenticatedUser = async (req, res) => {
                 email: email
             }
         })
-        // console.log(user);
 
         if (!user) {
           return res.status(422).json(validation({ msg: 'User not found!' }));
         }
   
-      // Send the response
       res.status(200).json(success(`Hello ${user.fullname}`, { data: [user] }, res.statusCode));
     } catch (err) {
       console.error(err.message);
@@ -211,7 +195,7 @@ exports.refreshToken = async (req, res) => {
     return false;
 }
 
-exports.verify = async (req, res) => {
+exports.verification = async (req, res) => {
     const { token } = req.params;
 
     try {
@@ -243,4 +227,46 @@ exports.verify = async (req, res) => {
     }
 
     return false;
+}
+
+exports.resendVerification = async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(422).json(validation([{ msg: 'Email is required' }]));
+    try {
+        const user = await User.findOne({
+            where: {
+                email: email
+            }
+        })
+        if (!user) return res.status(404).json(error('Email not found', res.statusCode));
+
+        if (user.verified === true) return res.status(422).json(validation([{ msg: 'Account is verified' }]));
+
+        // const verification = await Verification.findOne({
+        //     where: {
+        //         user_is: user.id
+        //     }
+        // })
+        // if (!verification) return res.status(404).json(error('No verification data found', res.statusCode));
+
+        const token = randomString(50);
+        await Verification.create({
+            user_id: user.id,
+            token: token,
+            token_type: 'REGISTER_ACCOUNT',
+            expiredAt: expiredDateByAddHour(1)
+        });
+
+        await mail.sendConfirmationEmail(
+            user.fullname,
+            user.email,
+            token,
+        );
+
+        res.status(200).json(success('Verification has been sent', res.statusCode))
+
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json(error('Server error', res.statusCode));
+    }
 }

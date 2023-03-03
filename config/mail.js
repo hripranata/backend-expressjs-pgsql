@@ -18,7 +18,7 @@ module.exports.sendConfirmationEmail = (name, email, token) => {
     html: `<h1>Email Confirmation</h1>
         <h2>Hello ${name}</h2>
         <p>Thank you for subscribing. Please confirm your email by clicking on the following link</p>
-        <a href=${process.env.CLIENT_ORIGIN}/verify/${token}> Click here</a>
+        <a href=${process.env.CLIENT_ORIGIN}/verification/${token}> Click here</a>
         </div>`,
   }).catch((err) => console.log(err));
 };

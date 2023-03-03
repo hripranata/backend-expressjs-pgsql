@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { validationResult } = require('express-validator');
 const { success, error, validation } = require('../helpers/responseApi');
-const { randomString } = require('../helpers/common');
+const { randomString, expiredDateByAddHour } = require('../helpers/common');
 const User = require('../database/models').User;
 const Role = require('../database/models').Role;
 const Verification = require('../database/models').Verification;
@@ -81,6 +81,7 @@ exports.register = async (req, res) => {
             user_id: newUser.id,
             token: token,
             token_type: 'Register New Account',
+            expiredAt: expiredDateByAddHour(1)
         });
         if (!verification) {
             console.log("Verification : " + verification);
@@ -221,6 +222,9 @@ exports.verify = async (req, res) => {
         })
 
         if (!verification) return res.status(404).json(error('No verification data found', res.statusCode));
+
+        const dateNow = new Date();
+        if (dateNow > verification.expiredAt) return res.status(404).json(error('Verificatiion token was expired', res.statusCode));
 
         await User.update({
             verified: true,

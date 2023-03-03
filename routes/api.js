@@ -14,7 +14,7 @@ const {
 
 // Routes
 router.post('/auth/register', registerValidation, register);
-// router.get('/auth/verify/:token', verify);
+router.get('/auth/verify/:token', verify);
 router.post('/auth/login', loginValidation, login);
 // router.post('/auth/verify/resend', resendVerification);
 // router.post('/auth/forgot', forgot);

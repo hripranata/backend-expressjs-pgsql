@@ -58,7 +58,7 @@ exports.register = async (req, res) => {
 
         const role = await Role.findOne({
             where: {
-                role_name: 'Admin'
+                role_name: 'admin'
             }
         })
         if (!role) {
@@ -202,6 +202,37 @@ exports.refreshToken = async (req, res) => {
             access_token: 'Bearer ' + accessToken,
             refresh_token: 'Bearer ' + refresh_token
         });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json(error('Server error', res.statusCode));
+    }
+
+    return false;
+}
+
+exports.verify = async (req, res) => {
+    const { token } = req.params;
+
+    try {
+        const verification = await Verification.findOne({
+            where: {
+                token: token
+            }
+        })
+
+        if (!verification) return res.status(404).json(error('No verification data found', res.statusCode));
+
+        await User.update({
+            verified: true,
+            verifiedAt: new Date()
+        },{
+            where: { 
+                id: verification.user_id 
+            }
+        })
+
+        res.status(200).json(success('Your successfully verificating your account', { verified: true }, res.statusCode))
+
     } catch (err) {
         console.error(err.message);
         res.status(500).json(error('Server error', res.statusCode));

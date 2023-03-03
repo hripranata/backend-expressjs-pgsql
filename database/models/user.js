@@ -40,6 +40,15 @@ module.exports = (sequelize, DataTypes) => {
     phone:  {
       type: DataTypes.STRING,
       allowNull: true
+    },
+    verified: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+      allowNull: false
+    },
+    verifiedAt: {
+      type: DataTypes.DATE,
+      allowNull: true
     }
   }, {
     sequelize,

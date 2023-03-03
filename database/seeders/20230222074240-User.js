@@ -6,22 +6,15 @@ module.exports = {
     await queryInterface.bulkInsert('Users', [
       {
         email: 'johndoe@mail.com',
-        password: 'qwerty123',
+        password: 'test123',
         fullname: 'John Doe',
         phone: '08579012579',
         role_id: 1,
+        verified: true,
+        verifiedAt: new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),
       },
-      {
-        email: 'janedoe@mail.com',
-        password: 'qwerty123',
-        fullname: 'Jane Doe',
-        phone: '08590253723',
-        role_id: 2,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }
     ], {});
   },
 

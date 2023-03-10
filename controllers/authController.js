@@ -209,7 +209,11 @@ exports.verification = async (req, res) => {
         if (!verification) return res.status(404).json(error('No verification data found', res.statusCode));
 
         const dateNow = new Date();
-        if (dateNow > verification.expiredAt) return res.status(404).json(error('Verificatiion token was expired', res.statusCode));
+        if (dateNow > verification.expiredAt) { 
+            verification.active = false;
+            await verification.save();
+            return res.status(404).json(error('Verification token was expired', res.statusCode))
+        };
 
         await User.update({
             verified: true,
@@ -219,13 +223,9 @@ exports.verification = async (req, res) => {
                 id: verification.user_id 
             }
         })
-        await Verification.update({
-            active: false,
-        },{
-            where: { 
-                id: verification.user_id 
-            }
-        })
+
+        verification.active = false;
+        await verification.save();
 
         res.status(200).json(success('Your successfully verificating your account', { verified: true }, res.statusCode))
 
@@ -250,12 +250,13 @@ exports.resendVerification = async (req, res) => {
 
         if (user.verified === true) return res.status(422).json(validation([{ msg: 'Account is verified' }]));
 
-        // const verification = await Verification.findOne({
-        //     where: {
-        //         user_id: user.id
-        //     }
-        // })
-        // if (!verification) return res.status(404).json(error('No verification data found', res.statusCode));
+        const verification = await Verification.findOne({
+            where: {
+                user_id: user.id,
+                active: true
+            }
+        })
+        if (verification) return res.status(404).json(error('Please try again later', res.statusCode));
 
         const token = randomString(50);
         await Verification.create({
@@ -340,7 +341,11 @@ exports.reset = async (req, res) => {
         if (!verification) return res.status(404).json(error('No verification data found', res.statusCode));
 
         const dateNow = new Date();
-        if (dateNow > verification.expiredAt) return res.status(404).json(error('Verificatiion token was expired', res.statusCode));
+        if (dateNow > verification.expiredAt) { 
+            verification.active = false;
+            await verification.save();
+            return res.status(404).json(error('Verificatiion token was expired', res.statusCode)) 
+        };
 
         await User.update({
             password: password
@@ -350,13 +355,9 @@ exports.reset = async (req, res) => {
             },
             individualHooks: true
         })
-        await Verification.update({
-            active: false,
-        },{
-            where: { 
-                id: verification.user_id 
-            }
-        })
+
+        verification.active = false;
+        await verification.save();
 
         res.status(200).json(success('Password has been update', res.statusCode))
     } catch (error) {

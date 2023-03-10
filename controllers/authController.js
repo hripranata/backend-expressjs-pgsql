@@ -1,4 +1,5 @@
 require('dotenv').config();
+const { Op } = require("sequelize");
 const { validationResult } = require('express-validator');
 const { success, error, validation } = require('../helpers/responseApi');
 const { randomString, expiredDateByAddHour } = require('../helpers/common');
@@ -55,7 +56,6 @@ exports.register = async (req, res) => {
             }
         })
         if (!role) {
-            console.log("Find role : " + role);
             res.status(500).json(error('Server error', res.statusCode));
         }
         const newUser = await User.create({
@@ -244,7 +244,7 @@ exports.resendVerification = async (req, res) => {
 
         // const verification = await Verification.findOne({
         //     where: {
-        //         user_is: user.id
+        //         user_id: user.id
         //     }
         // })
         // if (!verification) return res.status(404).json(error('No verification data found', res.statusCode));
@@ -266,6 +266,83 @@ exports.resendVerification = async (req, res) => {
         res.status(200).json(success('Verification has been sent', res.statusCode))
 
     } catch (err) {
+        console.error(err.message);
+        res.status(500).json(error('Server error', res.statusCode));
+    }
+}
+
+exports.forgot = async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(422).json(validation([{ msg: 'Email is required' }]));
+    try {
+        const user = await User.findOne({
+            where: {
+                email: email
+            }
+        })
+        if (!user) return res.status(404).json(error('Email not found', res.statusCode));
+
+        const dateNow = new Date();
+        const verification = await Verification.findOne({
+            where: {
+                user_id: user.id,
+                expiredAt: {
+                    [Op.gt]: dateNow
+                }
+            }
+        })
+        if (verification) return res.status(404).json(error('Please try again later', res.statusCode));
+
+        const token = randomString(50);
+        await Verification.create({
+            user_id: user.id,
+            token: token,
+            token_type: 'FORGOT_PASSWORD',
+            expiredAt: expiredDateByAddHour(1)
+        });
+
+        await mail.sendResetPassword(
+            email,
+            token,
+        );
+
+        res.status(200).json(success('Forgot Password verification has been sent', res.statusCode))
+        
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json(error('Server error', res.statusCode));
+    }
+}
+
+exports.reset = async (req, res) => {
+    const { password } = req.body;
+    if (!password) { return res.status(422).json(validation([{ msg: 'Password is required' }])); }
+    const { token } = req.params;
+    if (!token) { return res.status(422).json(validation([{ msg: 'Token is required' }])); }
+
+    try {
+        const verification = await Verification.findOne({
+            where: {
+                token: token
+            }
+        })
+
+        if (!verification) return res.status(404).json(error('No verification data found', res.statusCode));
+
+        const dateNow = new Date();
+        if (dateNow > verification.expiredAt) return res.status(404).json(error('Verificatiion token was expired', res.statusCode));
+
+        await User.update({
+            password: password
+        },{
+            where: { 
+                id: verification.user_id, 
+            },
+            individualHooks: true
+        })
+
+        res.status(200).json(success('Your Password has been update', res.statusCode))
+    } catch (error) {
         console.error(err.message);
         res.status(500).json(error('Server error', res.statusCode));
     }

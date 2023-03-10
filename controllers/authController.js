@@ -201,7 +201,8 @@ exports.verification = async (req, res) => {
     try {
         const verification = await Verification.findOne({
             where: {
-                token: token
+                token: token,
+                active: true
             }
         })
 
@@ -213,6 +214,13 @@ exports.verification = async (req, res) => {
         await User.update({
             verified: true,
             verifiedAt: new Date()
+        },{
+            where: { 
+                id: verification.user_id 
+            }
+        })
+        await Verification.update({
+            active: false,
         },{
             where: { 
                 id: verification.user_id 
@@ -286,6 +294,7 @@ exports.forgot = async (req, res) => {
         const verification = await Verification.findOne({
             where: {
                 user_id: user.id,
+                active: true,
                 expiredAt: {
                     [Op.gt]: dateNow
                 }
@@ -323,7 +332,8 @@ exports.reset = async (req, res) => {
     try {
         const verification = await Verification.findOne({
             where: {
-                token: token
+                token: token,
+                active: true
             }
         })
 
@@ -336,12 +346,19 @@ exports.reset = async (req, res) => {
             password: password
         },{
             where: { 
-                id: verification.user_id, 
+                id: verification.user_id,
             },
             individualHooks: true
         })
+        await Verification.update({
+            active: false,
+        },{
+            where: { 
+                id: verification.user_id 
+            }
+        })
 
-        res.status(200).json(success('Your Password has been update', res.statusCode))
+        res.status(200).json(success('Password has been update', res.statusCode))
     } catch (error) {
         console.error(err.message);
         res.status(500).json(error('Server error', res.statusCode));

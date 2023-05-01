@@ -253,6 +253,7 @@ exports.resendVerification = async (req, res) => {
         const verification = await Verification.findOne({
             where: {
                 user_id: user.id,
+                token_type: 'REGISTER_ACCOUNT',
                 active: true
             }
         })
@@ -291,14 +292,15 @@ exports.forgot = async (req, res) => {
         })
         if (!user) return res.status(404).json(error('Email not found', res.statusCode));
 
-        const dateNow = new Date();
+        // const dateNow = new Date();
         const verification = await Verification.findOne({
             where: {
                 user_id: user.id,
-                active: true,
-                expiredAt: {
-                    [Op.gt]: dateNow
-                }
+                token_type: 'FORGOT_PASSWORD',
+                active: true
+                // expiredAt: {
+                //     [Op.gt]: dateNow
+                // }
             }
         })
         if (verification) return res.status(404).json(error('Please try again later', res.statusCode));
